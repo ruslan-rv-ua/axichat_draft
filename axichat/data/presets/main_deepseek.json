@@ -1,0 +1,7 @@
+{
+    "name": "Deep Seek",
+    "provider_name": "deepseek",
+    "api_key": "%DEEPSEEK_API_KEY%",
+    "system_prompt": "You are Python developer.",
+    "model": "deepseek-coder"
+}
