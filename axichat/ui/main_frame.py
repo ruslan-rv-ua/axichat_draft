@@ -2,12 +2,13 @@ from datetime import datetime
 from pathlib import Path
 
 import wx
-from data_models import ChatMessage
-from services.chat import Chat, Chats
-from services.chat_client import ChatClient
-from services.preset import Presets
-from services.providers import Providers
+from data_types import Chat, ChatMessage
+from services import Chats, Presets, Providers
 from ui.presets_dialog import PresetsDialog
+
+
+def _(string: str) -> str:
+    return string
 
 
 class MainFrame(wx.Frame):
@@ -19,16 +20,24 @@ class MainFrame(wx.Frame):
         self.presets = Presets(data_dir=data_dir)
         self.chats = Chats(data_dir=data_dir)
 
+        self.current_chat: Chat | None = None
+
         self.init_ui()
         self.init_menu_bar()
+        self.init_status_bar()
+
         self.Maximize()
+        self.update_chat_log()
         self.Show()
 
     def init_ui(self):
         panel = wx.Panel(self)
 
         self.chat_log = wx.ListBox(panel, style=wx.LB_SINGLE)
-        self.input_box = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER | wx.TE_MULTILINE)
+        self.input_box = wx.TextCtrl(
+            panel,
+            style=wx.TE_PROCESS_ENTER | wx.TE_MULTILINE | wx.TE_RICH | wx.TE_READONLY,
+        )
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.chat_log, 1, wx.EXPAND | wx.ALL, 5)
@@ -59,22 +68,21 @@ class MainFrame(wx.Frame):
     ######################################################################
 
     def OnEnter(self, event):
+        if self.current_chat is None:
+            return
         text = self.input_box.GetValue().strip()
         self.input_box.Clear()
-        self.chat_client.chat.add_message(
-            chat_message=ChatMessage(role="user", content=text)
-        )
-        self.update_chat_log(self.chat_client.chat)
+        self.current_chat.messages.append(ChatMessage(role=_("You"), content=text))
+        self.update_chat_log()
         self.chat_log.SetFocus()
         self.chat_log.SetSelection(self.chat_log.GetCount() - 1)
 
-        # reply = wx.CallAfter(self.chat_client.send_request)
-        reply = self.chat_client.send_request()
-        
-        self.chat_client.chat.add_message(
-            chat_message=ChatMessage(role="assistant", content=reply)
+        reply = text[::-1]
+
+        self.current_chat.messages.append(
+            ChatMessage(role=_("Assistant"), content=reply)
         )
-        self.update_chat_log(self.chat_client.chat)
+        self.update_chat_log()
         self.chat_log.SetFocus()
         self.chat_log.SetSelection(self.chat_log.GetCount() - 1)
 
@@ -98,10 +106,13 @@ class MainFrame(wx.Frame):
             preset_name = dlg.get_selected_preset_name()
         dlg.Destroy()
 
-        chat_name = f"{datetime.now():%Y-%m-%d_%H-%M-%S}"
-        chat = self.chats.create(chat_name=chat_name, preset_name=preset_name)
-        self.chat_client = self.get_chat_client(chat)
-        self.update_chat_log(chat)
+        chat_id = f"{datetime.now():%Y-%m-%d_%H-%M-%S}"
+        self.current_chat = self.chats.create(
+            id=chat_id, preset=self.presets.get(preset_name)
+        )
+        self.update_chat_log(focus_item_index=None)
+        self.input_box.SetFocus()
+        self.input_box.SetEditable(True)
 
     def on_menu_exit(self, event):
         self.Close()
@@ -110,16 +121,22 @@ class MainFrame(wx.Frame):
     # Other
     ######################################################################
 
-    def update_chat_log(self, chat: Chat):
+    def update_chat_log(self, focus_item_index: int | None = None):
         self.chat_log.Clear()
-        for message in chat.messages:
+        if self.current_chat is None:
+            self.chat_log.Append(_("There is no chat. Create new or open one."))
+            self.chat_log.SetFocus()
+            self.chat_log.SetSelection(0)
+            return
+        if len(self.current_chat.messages) == 0:
+            self.chat_log.Append(_("There are no messages in the chat yet."))
+            self.chat_log.SetFocus()
+            self.chat_log.SetSelection(0)
+        for message in self.current_chat.messages:
             self.chat_log.Append(f"{message.role}: {message.content}")
-
-    def get_chat_client(self, chat: Chat):
-        preset = self.presets.get(chat.data.preset_name)
-        if preset is None:
-            raise ValueError(f"Preset not found: {chat.data.preset_name}")
-        provider = self.providers.get(preset.data.provider_name)
-        if provider is None:
-            raise ValueError(f"Provider not found: {preset.name}")
-        return ChatClient(chat=chat, preset=preset, provider=provider)
+        if focus_item_index is None:
+            return
+        self.chat_log.SetFocus()
+        if focus_item_index < 0:
+            focus_item_index = self.chat_log.GetCount() + focus_item_index
+        self.chat_log.SetSelection(focus_item_index)

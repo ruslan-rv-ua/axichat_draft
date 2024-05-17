@@ -1,5 +1,5 @@
 import wx
-from services.preset import Presets
+from services import Presets
 
 
 class PresetsDialog(wx.Dialog):
@@ -42,4 +42,6 @@ class PresetsDialog(wx.Dialog):
     def update_presets_list(self):
         self.preset_list.Clear()
         for preset in self.presets:
-            self.preset_list.Append(preset.name)
+            self.preset_list.Append(preset.id)
+        self.preset_list.SetFocus()
+        self.preset_list.Select(0)

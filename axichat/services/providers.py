@@ -1,7 +1,6 @@
 from pathlib import Path
 
-import msgspec
-from data_models import ProviderData
+from data_types import Provider
 
 PROVIDERS_DIR = "providers"
 
@@ -13,16 +12,18 @@ class Providers:
         self.update()
 
     def update(self):
-        self.data: list[ProviderData] = [
-            msgspec.json.decode(file_path.read_bytes(), type=ProviderData)
-            for file_path in self.providers_dir.glob("*.json")
+        self.data: list[Provider] = [
+            Provider.load(file_path) for file_path in self.providers_dir.glob("*.json")
         ]
 
-    def get(self, name: str) -> ProviderData | None:
+    def get(self, id: str) -> Provider:
         for provider in self.data:
-            if provider.name == name:
+            if provider.id == id:
                 return provider
-        return None
+        raise ValueError(f"Provider not found: {id}")
+
+    def ids_list(self):
+        return [provider.id for provider in self.data]
 
     def __len__(self):
         return len(self.data)

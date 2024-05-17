@@ -18,12 +18,20 @@ class ConfigABC(msgspec.Struct):
     def save(self):
         Path(self._file_path).write_bytes(json_encoder.encode(self))
 
+    def delete(self):
+        Path(self._file_path).unlink()
+        del self
+
     @classmethod
     def load(cls, file_path: str | Path):
-        file_path = Path(file_path)
-        return cls(**json_decoder.decode(file_path.read_bytes()))
+        file_path = Path(file_path).resolve()
+        data = json_decoder.decode(file_path.read_bytes())
+        data["_file_path"] = str(file_path)
+        return cls(**data)
 
     @classmethod
     def create(cls, file_path: str | Path, **kwargs):
         file_path = Path(file_path)
+        if file_path.exists():
+            raise ValueError(f"File already exists: {file_path}")
         return cls(_file_path=str(file_path.resolve()), **kwargs)
