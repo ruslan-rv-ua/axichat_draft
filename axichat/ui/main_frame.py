@@ -4,6 +4,7 @@ from pathlib import Path
 import wx
 from data_types import Chat, ChatMessage
 from services import Chats, Presets, Providers
+from thinker import EVT_RESPONSE_RECEIVED, Thinker
 from ui.presets_dialog import PresetsDialog
 
 
@@ -46,6 +47,8 @@ class MainFrame(wx.Frame):
         panel.SetSizer(sizer)
 
         self.input_box.Bind(wx.EVT_TEXT_ENTER, self.OnEnter)
+        self.Bind(wx.EVT_CLOSE, self.on_close)
+        self.Bind(EVT_RESPONSE_RECEIVED, self.OnResponseRecieved)
 
     def init_menu_bar(self):
         menu_bar = wx.MenuBar()
@@ -67,24 +70,26 @@ class MainFrame(wx.Frame):
     # Event handlers
     ######################################################################
 
+    def on_close(self, event):
+        self.Destroy()
+
     def OnEnter(self, event):
         if self.current_chat is None:
             return
         text = self.input_box.GetValue().strip()
+        self.current_chat.messages.append(ChatMessage(role="user", content=text))
+        Thinker(self).start()
+        self.update_chat_log(focus_item_index=-1)
         self.input_box.Clear()
-        self.current_chat.messages.append(ChatMessage(role=_("You"), content=text))
-        self.update_chat_log()
-        self.chat_log.SetFocus()
-        self.chat_log.SetSelection(self.chat_log.GetCount() - 1)
 
-        reply = text[::-1]
-
+    def OnResponseRecieved(self, event):
+        response = event.response
+        if self.current_chat is None:
+            return
         self.current_chat.messages.append(
-            ChatMessage(role=_("Assistant"), content=reply)
+            ChatMessage(role="assistant", content=response.choices[0].message.content)
         )
-        self.update_chat_log()
-        self.chat_log.SetFocus()
-        self.chat_log.SetSelection(self.chat_log.GetCount() - 1)
+        self.update_chat_log(focus_item_index=-1)
 
     ######################################################################
     # Menu event handlers
