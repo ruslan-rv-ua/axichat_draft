@@ -66,16 +66,17 @@ class MainFrame(wx.Frame):
         )
         self.update_chat_log(self.chat_client.chat)
         self.chat_log.SetFocus()
-        self.chat_log.SetSelection(-1)
-        input("Press Enter to continue...")
+        self.chat_log.SetSelection(self.chat_log.GetCount() - 1)
 
+        # reply = wx.CallAfter(self.chat_client.send_request)
         reply = self.chat_client.send_request()
+        
         self.chat_client.chat.add_message(
             chat_message=ChatMessage(role="assistant", content=reply)
         )
         self.update_chat_log(self.chat_client.chat)
         self.chat_log.SetFocus()
-        self.chat_log.SetSelection(-1)
+        self.chat_log.SetSelection(self.chat_log.GetCount() - 1)
 
     ######################################################################
     # Menu event handlers
