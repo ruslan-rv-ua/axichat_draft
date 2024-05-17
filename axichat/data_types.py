@@ -6,7 +6,7 @@ from msgspec import Struct
 
 class ProviderType(StrEnum):
     OPENAI = "openai"
-    GPT4FREE = "gpt4free"
+    GPT4FREE_OPENAI = "gpt4free_openai"
 
 
 class Model(Struct):
@@ -53,5 +53,6 @@ class ChatMessage(Struct):
 
 
 class Chat(ConfigABC):
+    id: str
     preset: Preset
     messages: list[ChatMessage] = []

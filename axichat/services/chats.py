@@ -30,7 +30,7 @@ class Chats:
 
     def create(self, id: str, preset: Preset) -> Chat:
         file_path = self.chats_dir / f"{id}.json"
-        chat = Chat.create(file_path, preset=preset)
+        chat = Chat.create(file_path, id=id, preset=preset)
         self.update()
         return chat
 

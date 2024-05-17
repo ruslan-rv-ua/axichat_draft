@@ -3,9 +3,9 @@ import threading
 
 import wx.lib.newevent
 from data_types import Chat, Preset, Provider, ProviderType
-from openai import OpenAI
 
 ResponseReceivedEvent, EVT_RESPONSE_RECEIVED = wx.lib.newevent.NewEvent()
+RequestSentEvent, EVT_REQUEST_SENT = wx.lib.newevent.NewEvent()
 
 
 class Thinker(threading.Thread):
@@ -23,10 +23,17 @@ class Thinker(threading.Thread):
     def run(self):
         match self.provider.type:
             case ProviderType.OPENAI:
+                from openai import OpenAI
+
                 self.client = OpenAI(
                     api_key=self.api_key,
                     base_url=self.provider.base_url,
                 )
+            case ProviderType.GPT4FREE_OPENAI:
+                from g4f.client import Client
+
+                self.client = Client()
+
             case _:
                 raise NotImplementedError(
                     f"Unsupported provider type: {self.provider.type}"
@@ -34,8 +41,13 @@ class Thinker(threading.Thread):
 
         messages = [{"role": m.role, "content": m.content} for m in self.chat.messages]
 
-        response = self.client.chat.completions.create(
-            model=self.preset.model_id, messages=messages
-        )
+        wx.PostEvent(self.window, RequestSentEvent())
+        try:
+            response = self.client.chat.completions.create(
+                model=self.preset.model_id,
+                messages=messages,
+            )
+        except Exception as e:
+            wx.PostEvent(self.window, ResponseReceivedEvent(response=e, error=True))
 
-        wx.PostEvent(self.window, ResponseReceivedEvent(response=response))
+        wx.PostEvent(self.window, ResponseReceivedEvent(response=response, error=False))

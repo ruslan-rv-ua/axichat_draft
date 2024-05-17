@@ -83,6 +83,16 @@ class MainFrame(wx.Frame):
         self.input_box.Clear()
 
     def OnResponseRecieved(self, event):
+        if event.error:
+            # show error message
+            wx.MessageBox(
+                message=str(event.response),
+                caption="Error",
+                style=wx.ICON_ERROR,
+                parent=self,
+            )
+            return
+
         response = event.response
         if self.current_chat is None:
             return
@@ -90,6 +100,9 @@ class MainFrame(wx.Frame):
             ChatMessage(role="assistant", content=response.choices[0].message.content)
         )
         self.update_chat_log(focus_item_index=-1)
+
+    def OnRequestSent(self, event):
+        print("Request sent")
 
     ######################################################################
     # Menu event handlers
